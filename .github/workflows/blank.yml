@@ -1,0 +1,63 @@
+can u make this script into terminal commands for github codespaces name: Ubuntu GUI with noVNC and ngrok
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ubuntu-gui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 480  # Set the max runtime to 8 hours
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Desktop Environment and Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xfce4 xfce4-goodies
+          sudo apt-get install -y xorg dbus-x11 x11-xserver-utils
+
+      - name: Install VNC server
+        run: |
+          sudo apt-get install -y tigervnc-standalone-server tigervnc-xorg-extension
+          mkdir -p ~/.vnc
+          echo "password" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
+
+      - name: Start VNC Server
+        run: |
+          vncserver :1 -geometry 1280x720 -depth 24 -localhost no
+          echo "VNC server started on :1"
+
+      - name: Install noVNC
+        run: |
+          sudo apt-get install -y novnc websockify
+          mkdir -p ~/novnc
+          wget https://github.com/novnc/noVNC/archive/v1.2.0.tar.gz -O ~/novnc/novnc.tar.gz
+          tar -xvzf ~/novnc/novnc.tar.gz -C ~/novnc --strip-components=1
+          sudo ln -s ~/novnc/vnc.html ~/novnc/index.html
+          
+      - name: Start noVNC Server
+        run: |
+          websockify --web ~/novnc --wrap-mode=ignore 6080 localhost:5901 &
+
+      - name: Install ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+          && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list \
+          && sudo apt-get update && sudo apt-get install ngrok
+
+      - name: Start ngrok Tunnel
+        run: |
+          ngrok authtoken 2m9fMOhaoVfi7Tkzq5y8465saza_6vqw78HpV9anvr2MeFZip  # Replace with your ngrok auth token
+          ngrok http 6080 &
+
+      - name: Get ngrok Public URL
+        run: |
+          sleep 10  # Wait for ngrok to start
+          curl --silent --show-error http://127.0.0.1:4040/api/tunnels | jq '.tunnels[0].public_url'
+
+      - name: Keep Session Alive
+        run: |
+          while true; do echo "Keeping session alive"; sleep 300; done
