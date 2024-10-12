@@ -50,7 +50,7 @@ jobs:
 
       - name: Start ngrok Tunnel
         run: |
-          ngrok authtoken <YOUR_NGROK_AUTH_TOKEN>  # Replace with your ngrok auth token
+          ngrok authtoken 2lSqDcIAObwIJt8gXfJMdKbp1bz_75d6FwZzyFdZVQ3AF4k3m  # Replace with your ngrok auth token
           ngrok http 6080 &
 
       - name: Get ngrok Public URL
