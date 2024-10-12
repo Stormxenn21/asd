@@ -1,10 +1,10 @@
-name: VNC Server with Backup to Google Drive
+name: Ubuntu GUI with noVNC and ngrok
 
 on:
   workflow_dispatch:
 
 jobs:
-  vnc-backup:
+  ubuntu-gui:
     runs-on: ubuntu-latest
     timeout-minutes: 480  # Set the max runtime to 8 hours
 
@@ -18,7 +18,7 @@ jobs:
           sudo apt-get install -y xfce4 xfce4-goodies
           sudo apt-get install -y xorg dbus-x11 x11-xserver-utils
 
-      - name: Install VNC Server
+      - name: Install VNC server
         run: |
           sudo apt-get install -y tigervnc-standalone-server tigervnc-xorg-extension
           mkdir -p ~/.vnc
@@ -42,25 +42,21 @@ jobs:
         run: |
           websockify --web ~/novnc --wrap-mode=ignore 6080 localhost:5901 &
 
-      - name: Install gdrive
+      - name: Install ngrok
         run: |
-          wget -O gdrive https://drive.google.com/uc?id=1UPZJr1Wc4hLB7M5nR5dQXM5_WlxQicId
-          chmod +x gdrive
-          sudo mv gdrive /usr/local/bin/
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+          && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list \
+          && sudo apt-get update && sudo apt-get install ngrok
 
-      - name: Authenticate gdrive
+      - name: Start ngrok Tunnel
         run: |
-          echo "${{ secrets.GDRIVE_AUTH_JSON }}" > /tmp/credentials.json
-          gdrive about --service-account /tmp/credentials.json
+          ngrok authtoken <YOUR_NGROK_AUTH_TOKEN>  # Replace with your ngrok auth token
+          ngrok http 6080 &
 
-      - name: Backup Data to Google Drive
+      - name: Get ngrok Public URL
         run: |
-          mkdir -p backup
-          # Replace with commands to backup data from VNC session to 'backup' directory
-          # Example: tar -czvf backup/backup.tar.gz /path/to/data
-          tar -czvf backup/backup.tar.gz /path/to/data
-          gdrive upload --recursive --service-account /tmp/credentials.json backup/
-          echo "Backup completed."
+          sleep 10  # Wait for ngrok to start
+          curl --silent --show-error http://127.0.0.1:4040/api/tunnels | jq '.tunnels[0].public_url'
 
       - name: Keep Session Alive
         run: |
